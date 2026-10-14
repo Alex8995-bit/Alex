@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=1920, user-scalable=no">
+  <title>NovaPlay IPTV</title>
+  <link rel="stylesheet" href="css/app.css">
+  <!-- API Samsung (AVPlay): presente solo su TV Tizen, altrove viene ignorata -->
+  <script src="$WEBAPIS/webapis/webapis.js"></script>
+</head>
+<body>
+  <div id="bg"></div>
+
+  <div id="stage">
+    <div id="screens"></div>
+    <div id="header">
+      <div id="logo">Nova<span>Play</span></div>
+      <div id="tabs"></div>
+      <div id="hdr-right">
+        <div id="hdr-date"></div>
+        <div id="hdr-exp" style="display:none"></div>
+      </div>
+    </div>
+    <div id="stage-modals"></div>
+  </div>
+
+  <div id="player" class="hidden">
+    <video id="vid" playsinline preload="auto"></video>
+    <div id="subs"></div>
+    <div id="p-spinner" class="spin"></div>
+    <div id="p-msg"></div>
+    <div id="p-zap"></div>
+    <div id="osd"></div>
+  </div>
+
+  <div id="overlay">
+    <div id="modals"></div>
+    <div id="loading"><div class="spin"></div><div id="loading-msg"></div></div>
+    <div id="toast"></div>
+  </div>
+
+  <script src="js/vendor/hls.min.js"></script>
+  <script src="js/vendor/mpegts.min.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/m3u.js"></script>
+  <script src="js/xtream.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/epg.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/usb.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/live.js"></script>
+  <script src="js/screens/vod.js"></script>
+  <script src="js/screens/search.js"></script>
+  <script src="js/screens/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

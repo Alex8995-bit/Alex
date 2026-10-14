@@ -1,0 +1,24 @@
+{
+  "playlists": [
+    {
+      "type": "xtream",
+      "name": "La mia IPTV",
+      "server": "http://server-esempio.com:8080",
+      "user": "NOME_UTENTE",
+      "pass": "PASSWORD"
+    },
+    {
+      "type": "m3u",
+      "name": "Lista M3U",
+      "url": "http://server-esempio.com/lista.m3u",
+      "epgUrl": "http://server-esempio.com/epg.xml.gz",
+      "expiry": "31/12/2026"
+    }
+  ],
+  "settings": {
+    "theme": "netflix",
+    "subAuto": true,
+    "subLang": "ita",
+    "buffer": "medium"
+  }
+}
