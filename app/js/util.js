@@ -56,7 +56,7 @@
   /* Immagine con fallback silenzioso (nasconde l'icona se il link e' rotto). */
   U.img = function (src, cls) {
     if (!src) return '';
-    return '<img class="' + (cls || '') + '" src="' + U.esc(src) + '" onerror="this.style.visibility=\'hidden\'" alt="">';
+    return '<img class="' + (cls || '') + '" src="' + U.esc(src) + '" decoding="async" onerror="this.style.visibility=\'hidden\'" alt="">';
   };
 
   /* ---------------------------------------------------------------- date */

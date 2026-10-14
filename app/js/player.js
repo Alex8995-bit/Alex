@@ -166,7 +166,8 @@
       var h = this.hls = new Hls({
         enableWorker: true,
         maxBufferLength: buf, maxMaxBufferLength: buf * 2, backBufferLength: o.live ? 10 : 30,
-        liveSyncDurationCount: 3, liveMaxLatencyDurationCount: 10,
+        liveSyncDurationCount: 4, liveMaxLatencyDurationCount: 12, maxLiveSyncPlaybackRate: 1.05,
+        maxBufferHole: 1, nudgeMaxRetry: 10, highBufferWatchdogPeriod: 2,
         manifestLoadingMaxRetry: 6, levelLoadingMaxRetry: 6, fragLoadingMaxRetry: 6,
         manifestLoadingRetryDelay: 1000, fragLoadingRetryDelay: 1000,
         startPosition: o.startAt > 0 ? o.startAt : -1,
@@ -187,8 +188,9 @@
 
     if (isTs && window.mpegts && mpegts.getFeatureList().mseLivePlayback) {
       var mp = this.mp = mpegts.createPlayer({ type: 'mpegts', isLive: !!o.live, url: url }, {
-        enableWorker: true, lazyLoad: !o.live, enableStashBuffer: true, stashInitialSize: 384 * 1024,
-        liveBufferLatencyChasing: true, liveBufferLatencyMaxLatency: 8, liveBufferLatencyMinRemain: 2,
+        enableWorker: true, lazyLoad: !o.live, enableStashBuffer: true, stashInitialSize: 1024 * 1024,
+        // niente salti in avanti per recuperare il ritardo (causano scatti): si accelera di poco
+        liveBufferLatencyChasing: false, liveSync: true, liveSyncMaxLatency: 15, liveSyncTargetLatency: 8, liveSyncPlaybackRate: 1.05,
         autoCleanupSourceBuffer: true, autoCleanupMaxBackwardDuration: 60, autoCleanupMinBackwardDuration: 30
       });
       mp.on(mpegts.Events.ERROR, function (t, d) { cb('error', t + ':' + d); });
@@ -219,6 +221,23 @@
     try { v.pause(); } catch (e) { /* ignore */ }
     v.removeAttribute('src');
     try { v.load(); } catch (e) { /* ignore */ }
+  };
+  /*
+   * Piccoli blocchi: se c'e' un "buco" nel buffer o il video e' fermo con dati gia'
+   * scaricati, salta di poco in avanti invece di riavviare tutto lo stream.
+   */
+  Html5Engine.prototype.nudge = function () {
+    var v = this.v, b = v.buffered, t = v.currentTime;
+    try {
+      if (b.length && t < b.start(0) - 0.05) { v.currentTime = b.start(0) + 0.1; return true; }
+      for (var i = 0; i < b.length; i++) {
+        var st = b.start(i), en = b.end(i);
+        if (st > t + 0.05 && st - t < 6) { v.currentTime = st + 0.1; return true; }
+        if (t >= st && t <= en && en - t > 1 && v.readyState < 3) { v.currentTime = t + 0.2; return true; }
+      }
+      if (v.paused && !this.userPaused) { this.play(); return true; }
+    } catch (e) { /* ignore */ }
+    return false;
   };
   Html5Engine.prototype.play = function () { var p = this.v.play(); if (p && p['catch']) p['catch'](function () { }); };
   Html5Engine.prototype.pause = function () { this.v.pause(); };
@@ -351,6 +370,8 @@
 
     load: function () {
       P.state = 'loading';
+      P.userPaused = false;
+      if (P.engine) P.engine.userPaused = false;
       P.lastMove = Date.now();
       P.spinner(true);
       P.msg('');
@@ -454,11 +475,18 @@
       if (!P.mode || !P.engine) return;
       var now = Date.now();
       if (P.state === 'playing' || P.state === 'buffering' || P.state === 'loading') {
-        if (P.engine.isPaused() && P.state === 'playing') { P.lastMove = now; return; }
+        if (P.engine.isPaused() && P.userPaused) { P.lastMove = now; return; }
         var t = P.engine.time();
         if (Math.abs(t - P.lastTick) > 0.05) { P.lastTick = t; P.lastMove = now; }
-        var limit = P.state === 'loading' ? 25000 : (P.isLive() ? 12000 : 20000);
-        if (now - P.lastMove > limit) P.recover('blocco');
+        var still = now - P.lastMove;
+        // 1) blocco breve: piccolo salto nel buffer (senza riconnettersi)
+        if (still > 2500 && P.state !== 'loading' && P.engine.nudge && now - (P.lastNudge || 0) > 2500) {
+          P.lastNudge = now;
+          if (P.engine.nudge()) return;
+        }
+        // 2) blocco lungo: riconnessione
+        var limit = P.state === 'loading' ? 25000 : (P.isLive() ? 10000 : 20000);
+        if (still > limit) P.recover('blocco');
       }
       if (P.retries && P.state === 'playing' && P.stableSince && now - P.stableSince > 30000) P.retries = 0;
       if (P.osdVisible) P.updateOsd(false);
@@ -535,10 +563,26 @@
     },
 
     /* --------------------------------------------- canali/episodi */
+    /*
+     * Cambio canale: il nome compare subito, lo stream parte quando ti fermi
+     * (premendo piu' volte ▲▼ non si apre una connessione per ogni canale saltato).
+     */
     zap: function (delta) {
       if (!P.list || !P.list.length) return;
-      var i = (P.index + delta + P.list.length) % P.list.length;
-      P.zapTo(i);
+      var base = P.pendingZap !== undefined && P.pendingZap !== null ? P.pendingZap : P.index;
+      var i = (base + delta + P.list.length) % P.list.length;
+      P.pendingZap = i;
+      P.hideOsd();
+      var it = P.list[i], z = U.$('#p-zap');
+      z.innerHTML = '<small>' + U.esc(it.num || '') + '</small>' + U.esc(it.name);
+      z.className = 'zap-name';
+      z.style.display = 'block';
+      clearTimeout(P.zapT);
+      P.zapT = setTimeout(function () {
+        P.pendingZap = null;
+        z.style.display = 'none'; z.className = '';
+        if (i !== P.index) P.zapTo(i);
+      }, 650);
     },
     zapTo: function (i) {
       var it = P.list[i];
@@ -615,7 +659,8 @@
 
     togglePause: function () {
       if (!P.engine) return;
-      if (P.engine.isPaused()) P.engine.play(); else P.engine.pause();
+      if (P.engine.isPaused()) { P.userPaused = false; P.engine.play(); } else { P.userPaused = true; P.engine.pause(); }
+      P.engine.userPaused = P.userPaused;
       setTimeout(P.refreshPlayBtn, 150);
       P.showOsd();
     },
@@ -714,6 +759,7 @@
     digits: function (n) {
       var z = U.$('#p-zap');
       P.numBuf = (P.numBuf || '') + n;
+      z.className = '';
       z.textContent = P.numBuf;
       z.style.display = 'block';
       clearTimeout(P.numT);
@@ -734,8 +780,8 @@
         case 'green': P.menuTracks('audio'); return true;
         case 'yellow': P.cycleAspect(); return true;
         case 'blue': if (live) P.toggleFav(); return true;
-        case 'play': P.engine.play(); P.showOsd(); return true;
-        case 'pause': P.engine.pause(); P.showOsd(); return true;
+        case 'play': P.userPaused = P.engine.userPaused = false; P.engine.play(); P.showOsd(); return true;
+        case 'pause': P.userPaused = P.engine.userPaused = true; P.engine.pause(); P.showOsd(); return true;
         case 'playpause': P.togglePause(); return true;
         case 'stop': P.close(); return true;
         case 'ff': P.seekBy(30); return true;

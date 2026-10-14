@@ -114,6 +114,14 @@
         if (a === 'exit') { App.exit(); return; }
         if (a === 'digit') e.digit = (e.keyCode >= 96 ? e.keyCode - 96 : e.keyCode - 48);
         App.Idle && App.Idle.ping();
+        // tasto tenuto premuto: limitiamo la frequenza per non accodare lavoro
+        var dir = a === 'up' || a === 'down' || a === 'left' || a === 'right' || a === 'chup' || a === 'chdown';
+        Nav.repeating = !!(e.repeat && dir);
+        if (Nav.repeating) {
+          var now = Date.now();
+          if (now - (Nav.lastRepeat || 0) < 70) { e.preventDefault(); return; }
+          Nav.lastRepeat = now;
+        }
         if (Nav.handle(a, e)) e.preventDefault();
         else if (a !== 'back' || e.keyCode !== 8) e.preventDefault();
       }, true);
@@ -204,18 +212,36 @@
     return this.dir === 'h' ? (this.el.clientWidth || this.o.view || 1600) : (this.el.clientHeight || this.o.view || 800);
   };
 
+  /*
+   * Disegna solo le righe visibili. Le righe gia' presenti vengono riutilizzate
+   * (niente ridisegno ne' ricaricamento dei loghi): si aggiungono/tolgono solo
+   * quelle che entrano/escono dallo schermo, cosi' lo scorrimento resta fluido.
+   */
   List.prototype.renderWindow = function (force) {
     var o = this.o, size = o.itemSize, vs = this.viewSize();
-    var first = Math.max(0, Math.floor(this.offset / size) - 2);
-    var last = Math.ceil((this.offset + vs) / size) + 2;
+    var first = Math.max(0, Math.floor(this.offset / size) - 3);
+    var last = Math.ceil((this.offset + vs) / size) + 3;
     var a = first * this.cols, b = Math.min(this.items.length, last * this.cols);
     if (!force && a === this.win[0] && b === this.win[1]) return;
     this.win = [a, b];
-    var html = '';
-    for (var i = a; i < b; i++) html += this.itemHtml(this.items[i], i);
-    this.inner.innerHTML = html;
-    this.bindNodes();
-    if (o.onRender) o.onRender(this.items.slice(a, b), a);
+    if (force || !this.nodes) { this.inner.innerHTML = ''; this.nodes = {}; }
+    var nodes = this.nodes, k, html = '', added = 0;
+    for (k in nodes) {
+      if (nodes.hasOwnProperty(k) && (k < a || k >= b)) { this.inner.removeChild(nodes[k]); delete nodes[k]; }
+    }
+    for (var i = a; i < b; i++) if (!nodes[i]) { html += this.itemHtml(this.items[i], i); added++; }
+    if (added) {
+      var tmp = document.createElement('div'), frag = document.createDocumentFragment();
+      tmp.innerHTML = html;
+      while (tmp.firstChild) {
+        var n = tmp.firstChild;
+        n.__list = this;
+        nodes[+n.getAttribute('data-i')] = n;
+        frag.appendChild(n);
+      }
+      this.inner.appendChild(frag);
+      if (o.onRender) o.onRender(this.items.slice(a, b), a);
+    }
   };
 
   List.prototype.bindNodes = function () {
@@ -224,6 +250,7 @@
   };
 
   List.prototype.node = function (i) {
+    if (this.virtual()) return this.nodes ? this.nodes[i] || null : null;
     return this.inner.querySelector('[data-i="' + i + '"]');
   };
 
@@ -233,6 +260,7 @@
     var nn = U.el(this.itemHtml(this.items[i], i));
     nn.__list = this;
     n.parentNode.replaceChild(nn, n);
+    if (this.virtual()) this.nodes[i] = nn;
   };
 
   List.prototype.refreshVisible = function () {
@@ -278,9 +306,12 @@
   List.prototype.applyOffset = function (off, instant) {
     this.offset = off;
     var t = this.dir === 'h' ? 'translate3d(' + (-off) + 'px,0,0)' : 'translate3d(0,' + (-off) + 'px,0)';
-    if (instant) this.inner.style.transition = 'none';
-    this.inner.style.transform = this.inner.style.webkitTransform = t;
-    if (instant) { void this.inner.offsetWidth; this.inner.style.transition = ''; }
+    var st = this.inner.style;
+    // tenendo premuto un tasto lo scorrimento e' immediato (niente animazioni accodate)
+    if (instant || Nav.repeating) st.transition = 'none';
+    else if (st.transition === 'none') st.transition = '';
+    st.transform = st.webkitTransform = t;
+    if (instant && !Nav.repeating) { void this.inner.offsetWidth; st.transition = ''; }
     if (this.virtual()) this.renderWindow(false);
   };
 

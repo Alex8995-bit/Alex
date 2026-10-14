@@ -15,6 +15,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const zlib = require('zlib');
+// connessioni riutilizzate verso il server IPTV: i segmenti video arrivano senza ritardi di apertura
+const AGENTS = { 'http:': new http.Agent({ keepAlive: true, maxSockets: 16 }), 'https:': new https.Agent({ keepAlive: true, maxSockets: 16 }) };
 const { URL } = require('url');
 
 const PORT = +process.argv[2] || +process.env.PORT || 8080;
@@ -48,7 +50,7 @@ function proxy(req, res, target, hops) {
     /\/(live|movie|series)\//i.test(u.pathname) || /\/\d+$/.test(u.pathname);
   if (!req.headers.range && !isMedia) headers['Accept-Encoding'] = 'gzip';
   // alcuni server impiegano minuti a preparare le liste grandi
-  const up = lib.get(u, { headers, timeout: 300000 }, (r) => {
+  const up = lib.get(u, { headers, timeout: 300000, agent: AGENTS[u.protocol] }, (r) => {
     if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops < 5) {
       r.resume();
       return proxy(req, res, new URL(r.headers.location, u).toString(), hops + 1);
