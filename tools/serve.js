@@ -14,6 +14,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const zlib = require('zlib');
 const { URL } = require('url');
 
 const PORT = +process.argv[2] || +process.env.PORT || 8080;
@@ -42,19 +43,30 @@ function proxy(req, res, target, hops) {
   const lib = u.protocol === 'https:' ? https : http;
   const headers = { 'User-Agent': req.headers['user-agent'] || 'NovaPlay', Accept: '*/*' };
   if (req.headers.range) headers.Range = req.headers.range;
-  const up = lib.get(u, { headers, timeout: 30000 }, (r) => {
+  // liste e API compresse in gzip: arrivano molto piu' in fretta (non per i video)
+  const isMedia = /\.(ts|m3u8|mp4|mkv|avi|mov|m4s|m4v|aac|webm|key)(\?|$)/i.test(u.pathname) ||
+    /\/(live|movie|series)\//i.test(u.pathname) || /\/\d+$/.test(u.pathname);
+  if (!req.headers.range && !isMedia) headers['Accept-Encoding'] = 'gzip';
+  // alcuni server impiegano minuti a preparare le liste grandi
+  const up = lib.get(u, { headers, timeout: 300000 }, (r) => {
     if (r.statusCode >= 300 && r.statusCode < 400 && r.headers.location && hops < 5) {
       r.resume();
       return proxy(req, res, new URL(r.headers.location, u).toString(), hops + 1);
     }
     if (!/\.(ts|m4s|aac|key|bin)(\?|$)/i.test(u.pathname)) console.log('[proxy]', r.statusCode, safe(u.href));
     const ct = String(r.headers['content-type'] || '');
-    const isPlaylist = /mpegurl/i.test(ct) || /\.m3u8(\?|$)/i.test(u.pathname);
+    const isPlaylist = /\.m3u8(\?|$)/i.test(u.pathname) || (/mpegurl/i.test(ct) && isMedia);
     if (isPlaylist) {
       let body = '';
-      r.setEncoding('utf8');
-      r.on('data', (d) => { body += d; });
-      r.on('end', () => {
+      const src = /gzip/i.test(r.headers['content-encoding'] || '') ? r.pipe(zlib.createGunzip()) : r;
+      src.setEncoding('utf8');
+      src.on('data', (d) => { body += d; });
+      src.on('error', () => res.end());
+      src.on('end', () => {
+        if (!/#EXT-X-/.test(body)) {           // non e' HLS: la inoltriamo cosi' com'e'
+          res.writeHead(r.statusCode, Object.assign({ 'Content-Type': ct || 'text/plain' }, CORS));
+          return res.end(body);
+        }
         const base = `http://${req.headers.host}/proxy?url=`;
         const out = body.split(/\r?\n/).map((line) => {
           const t = line.trim();

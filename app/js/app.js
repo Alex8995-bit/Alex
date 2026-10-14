@@ -255,12 +255,12 @@
   };
 
   /* -------------------------------------------------------- caricamento */
-  App.loadActive = function () {
+  App.loadActive = function (opts) {
     var p = App.Settings.activeProfile();
     if (!p) { App.Catalog.loaded = false; App.go('welcome'); return Promise.resolve(); }
     App.Player.close();
     UI.loading('Caricamento di «' + p.name + '»…');
-    return App.Catalog.load(p, function (s) { UI.loading(s); }).then(function () {
+    return App.Catalog.load(p, function (s) { UI.loading(s); }, opts).then(function () {
       UI.loading(false);
       App.EPG.init();
       App.Header.expiry();
@@ -269,6 +269,7 @@
       App.Screens.series.reset && App.Screens.series.reset();
       App.go('home', { focusContent: true });
       var a = App.Catalog.account, dl = a && a.expiry ? U.daysLeft(a.expiry) : null;
+      setTimeout(App.Catalog.refresh, 8000);
       if (dl !== null && dl <= 7) UI.toast(dl < 0 ? 'Attenzione: abbonamento scaduto!' : 'Attenzione: l\'abbonamento scade tra ' + dl + ' giorni', 6000);
     }, function (err) {
       UI.loading(false);
@@ -278,7 +279,7 @@
         title: 'Impossibile caricare la playlist',
         message: (err && err.message ? err.message : String(err)),
         options: [{ label: 'Riprova', v: 'retry' }, { label: 'Apri impostazioni', v: 'set' }],
-        onSelect: function (o) { if (o.v === 'retry') App.loadActive(); else App.go('settings', { focusContent: true }); }
+        onSelect: function (o) { if (o.v === 'retry') App.loadActive({ fresh: true }); else App.go('settings', { focusContent: true }); }
       });
       App.go('settings');
     });

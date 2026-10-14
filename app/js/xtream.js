@@ -33,7 +33,7 @@
 
   /* Verifica credenziali e restituisce le info account normalizzate. */
   Xtream.prototype.auth = function () {
-    return this.api('', null, 20000).then(function (r) {
+    return this.api('', null, 60000).then(function (r) {
       var ui = r && r.user_info;
       if (!ui || String(ui.auth) === '0') throw new Error('Credenziali Xtream non valide');
       return Xtream.account(r);

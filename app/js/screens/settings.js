@@ -12,7 +12,7 @@
       S.set('profiles', list);
       if (activate || !S.get('activeProfile')) S.set('activeProfile', p.id);
     },
-    reloadSoon: function () { setTimeout(App.loadActive, 60); },
+    reloadSoon: function (useCache) { setTimeout(function () { App.loadActive({ fresh: !useCache }); }, 60); },
 
     addXtream: function (ex) {
       ex = ex || {};
@@ -117,6 +117,7 @@
         var S = App.Settings;
         S.set('profiles', S.get('profiles').filter(function (x) { return x.id !== p.id; }));
         App.IDB.del('m3u:' + p.id);
+        App.IDB.del('cat:' + p.id);
         App.Store.remove('ud.' + p.id);
         if (S.get('activeProfile') === p.id) {
           S.set('activeProfile', S.get('profiles')[0] ? S.get('profiles')[0].id : null);
@@ -136,7 +137,7 @@
       UI.select({
         title: p.name, options: opts,
         onSelect: function (o) {
-          if (o.v === 'use' || o.v === 'reload') { App.Settings.set('activeProfile', p.id); Pr.reloadSoon(); }
+          if (o.v === 'use' || o.v === 'reload') { App.Settings.set('activeProfile', p.id); Pr.reloadSoon(o.v === 'use'); }
           else if (o.v === 'edit') { if (p.type === 'xtream') Pr.addXtream(p); else if (p.type === 'm3u') Pr.addM3U(p); else Pr.editFile(p); }
           else if (o.v === 'usb') {
             App.USB.pick().then(function (f) {
