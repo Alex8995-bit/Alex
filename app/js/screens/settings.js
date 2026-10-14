@@ -310,8 +310,9 @@
 
     network: function () {
       return [
-        text('proxy', 'Proxy CORS', 'Solo browser/Hisense: es. http://IP-DEL-PC:8080/proxy (vedi tools/serve.js). Non serve su Samsung.', 'http://192.168.1.10:8080/proxy'),
+        text('proxy', 'Proxy CORS manuale', 'Lascia vuoto se apri l\'app da tools/serve.js: il proxy si attiva da solo. Non serve su Samsung.', 'http://192.168.1.10:8080/proxy'),
         toggle('proxyStreams', 'Usa il proxy anche per i video', 'Attiva solo se i video non partono per errori CORS'),
+        infoRow('Proxy automatico', App.autoProxy ? 'Attivo: ' + App.autoProxy : 'Non attivo'),
         infoRow('Piattaforma', App.isTizen ? 'Samsung Tizen' : App.isVidaa ? 'Hisense VIDAA' : 'Browser')
       ];
     },

@@ -28,9 +28,17 @@ const CORS = {
   'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Content-Type'
 };
 
+/* Nasconde le password nei messaggi del Terminale. */
+function safe(url) {
+  return String(url).replace(/(password=)[^&]*/i, '$1***').replace(/\/(live|movie|series)\/([^\/]+)\/[^\/]+\//, '/$1/$2/***/');
+}
+
 function proxy(req, res, target, hops) {
   let u;
-  try { u = new URL(target); } catch (e) { res.writeHead(400, CORS); return res.end('URL non valido'); }
+  try { u = new URL(target); } catch (e) {
+    console.log('[proxy] URL non valido:', safe(target));
+    res.writeHead(400, CORS); return res.end('URL non valido');
+  }
   const lib = u.protocol === 'https:' ? https : http;
   const headers = { 'User-Agent': req.headers['user-agent'] || 'NovaPlay', Accept: '*/*' };
   if (req.headers.range) headers.Range = req.headers.range;
@@ -39,6 +47,7 @@ function proxy(req, res, target, hops) {
       r.resume();
       return proxy(req, res, new URL(r.headers.location, u).toString(), hops + 1);
     }
+    if (!/\.(ts|m4s|aac|key|bin)(\?|$)/i.test(u.pathname)) console.log('[proxy]', r.statusCode, safe(u.href));
     const ct = String(r.headers['content-type'] || '');
     const isPlaylist = /mpegurl/i.test(ct) || /\.m3u8(\?|$)/i.test(u.pathname);
     if (isPlaylist) {
@@ -66,16 +75,24 @@ function proxy(req, res, target, hops) {
   });
   up.on('timeout', () => up.destroy(new Error('timeout')));
   up.on('error', (e) => {
+    if (res.writableEnded) return;
+    console.log('[proxy] ERRORE', e.message, '->', safe(u.href));
     if (!res.headersSent) res.writeHead(502, CORS);
     res.end('Errore proxy: ' + e.message);
   });
-  req.on('close', () => up.destroy());
+  // se il TV chiude la connessione (cambio canale) chiudiamo anche quella verso il server IPTV
+  res.on('close', () => { if (!res.writableFinished) up.destroy(); });
 }
 
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
   if (u.pathname === '/proxy') return proxy(req, res, u.searchParams.get('url') || '', 0);
+  if (u.pathname === '/__novaplay') {
+    // l'app lo usa per capire che e' servita da questo server e attivare il proxy da sola
+    res.writeHead(200, Object.assign({ 'Content-Type': 'application/json' }, CORS));
+    return res.end(JSON.stringify({ proxy: '/proxy' }));
+  }
   let p = path.normalize(decodeURIComponent(u.pathname)).replace(/^(\.\.[\/\\])+/, '');
   if (p === '/' || p === '\\') p = '/index.html';
   const file = path.join(ROOT, p);
@@ -92,5 +109,6 @@ http.createServer((req, res) => {
   }));
   console.log('NovaPlay in esecuzione:');
   (ips.length ? ips : ['localhost']).forEach((ip) => console.log(`  App:   http://${ip}:${PORT}/`));
-  (ips.length ? ips : ['localhost']).forEach((ip) => console.log(`  Proxy: http://${ip}:${PORT}/proxy`));
+  console.log('Il proxy si attiva da solo quando apri l\'app da questo indirizzo.');
+  console.log('Qui sotto vedrai le richieste verso il server IPTV (Ctrl+C per fermare).');
 });

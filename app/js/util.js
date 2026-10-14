@@ -219,10 +219,25 @@
 
   /* -------------------------------------------------------------- http */
 
+  /*
+   * Proxy CORS: quello scritto nelle impostazioni oppure, se l'app e' aperta da
+   * tools/serve.js, quello dello stesso server (attivato in automatico, anche per i video).
+   */
+  App.autoProxy = '';
+  App.detectProxy = function () {
+    if (App.isTizen || !/^https?:$/.test(location.protocol)) return Promise.resolve('');
+    return U.http(location.protocol + '//' + location.host + '/__novaplay', { json: true, timeout: 3000, noProxy: true }).then(function (r) {
+      App.autoProxy = r && r.proxy ? location.protocol + '//' + location.host + r.proxy : '';
+      return App.autoProxy;
+    }, function () { return ''; });
+  };
+
   U.proxify = function (url, isStream) {
-    var p = App.Settings.data && App.Settings.data.proxy;
+    var manual = App.Settings.data && App.Settings.data.proxy;
+    var p = manual || App.autoProxy;
     if (!p || App.isTizen) return url;              // su Tizen il CORS non si applica
-    if (isStream && !App.Settings.data.proxyStreams) return url;
+    if (!/^https?:\/\//i.test(p)) p = 'http://' + p;
+    if (isStream && manual && !App.Settings.data.proxyStreams) return url;
     if (url.indexOf(p) === 0) return url;
     return p + (p.indexOf('?') >= 0 ? '' : '?url=') + encodeURIComponent(url);
   };
@@ -243,7 +258,10 @@
           reject(new Error('Errore HTTP ' + xhr.status));
         }
       };
-      xhr.onerror = function () { reject(new Error('Connessione non riuscita (rete o CORS)')); };
+      xhr.onerror = function () {
+        var host = (String(url).match(/^https?:\/\/([^\/?#]+)/i) || [])[1] || url;
+        reject(new Error('Connessione non riuscita verso ' + host + (App.autoProxy || App.Settings.data.proxy ? ' (tramite proxy)' : ' (rete o CORS)')));
+      };
       xhr.ontimeout = function () { reject(new Error('Timeout del server')); };
       xhr.send();
     });

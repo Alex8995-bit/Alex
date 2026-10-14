@@ -329,7 +329,7 @@
       if (App.Screens[n].init) App.Screens[n].init(div);
     });
     App.EPG.onUpdate(function () { if (App.screen && App.screen.onEpg) App.screen.onEpg(); });
-    App.loadActive();
+    App.detectProxy().then(function () { App.loadActive(); });
   };
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', App.start);
