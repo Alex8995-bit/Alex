@@ -5,11 +5,14 @@
 
   /* ------------------------------------------------------------ temi */
   App.THEMES = {
-    prime: { name: 'Prime Video (blu)', accent: '#1A98FF', accText: '#fff', bg: '#0F171E', bg2: '#1B2838', panel: 'rgba(27,37,48,.92)' },
-    netflix: { name: 'Netflix (rosso)', accent: '#E50914', accText: '#fff', bg: '#141414', bg2: '#2a0c0e', panel: 'rgba(28,28,28,.92)' },
-    youtube: { name: 'YouTube (scuro)', accent: '#FF0033', accText: '#fff', bg: '#0F0F0F', bg2: '#1f1f1f', panel: 'rgba(30,30,30,.92)' },
-    apple: { name: 'Apple TV (minimal)', accent: '#FFFFFF', accText: '#000', bg: '#000000', bg2: '#1c1c1e', panel: 'rgba(22,22,24,.92)' }
+    prime: { name: 'Prime Video (blu)', accent: '#1A98FF', accText: '#fff', bar: '#1A98FF', bg: '#0F171E', bg2: '#1B2838', panel: 'rgba(27,37,48,.92)' },
+    netflix: { name: 'Netflix (rosso)', accent: '#E50914', accText: '#fff', bar: '#E50914', bg: '#141414', bg2: '#2a0c0e', panel: 'rgba(28,28,28,.92)' },
+    youtube: { name: 'YouTube (scuro)', accent: '#F1F1F1', accText: '#0F0F0F', bar: '#FF0000', bg: '#0F0F0F', bg2: '#212121', panel: 'rgba(33,33,33,.94)' },
+    apple: { name: 'Apple TV (minimal)', accent: '#FFFFFF', accText: '#000', bar: '#FFFFFF', bg: '#000000', bg2: '#1c1c1e', panel: 'rgba(22,22,24,.92)' }
   };
+
+  /* Tema automatico: ogni sezione ha lo stile del servizio a cui si ispira. */
+  App.SECTION_THEME = { home: 'apple', welcome: 'apple', live: 'prime', movie: 'netflix', series: 'youtube', search: 'apple', settings: 'apple' };
 
   var THEME_CSS = [
     '#bg{background:radial-gradient(ellipse at 70% 0%,{bg2} 0%,{bg} 60%);}',
@@ -24,7 +27,7 @@
     '.ch.sel{background:rgba(255,255,255,.06);}',
     '.zone-active .ch.focus{background:{accent};color:{accText};}',
     '.zone-active .ch.focus .ch-epg,.zone-active .ch.focus .ch-num{opacity:.9;}',
-    '.pbar i,.li-bar i,.osd-bar i,.card-prog i{background:{accent};}',
+    '.pbar i,.li-bar i,.osd-bar i,.card-prog i{background:{bar};}',
     '.zone-active .ch.focus .pbar i{background:{accText};}',
     '.ch-playing{background:{accent};color:{accText};}',
     '.zone-active .ch.focus .ch-playing{background:{accText};color:{accent};}',
@@ -36,15 +39,19 @@
     '.field.focus,.search-field.focus{border-color:{accent};}',
     '.spin,#p-spinner{border-top-color:{accent};}',
     '#logo{color:{accent};}#logo span{color:#fff;}',
-    '.hero-meta .rating,.d-meta .rating{color:{accent};}',
+    '.hero-meta .rating,.d-meta .rating{color:{bar};}',
     '.vod-bg .shade{background:linear-gradient(to right,{bg} 3%,rgba(0,0,0,0) 45%),linear-gradient(to top,{bg} 38%,rgba(0,0,0,0) 75%);}',
-    '.home-bg .shade{background:linear-gradient(to right,{bg} 22%,rgba(0,0,0,0) 65%),linear-gradient(to top,{bg} 48%,rgba(0,0,0,0) 85%);}',
     '.detail{background:{bg};}.detail .shade{background:linear-gradient(to right,{bg} 25%,rgba(0,0,0,.2) 80%),linear-gradient(to top,{bg} 30%,rgba(0,0,0,0) 70%);}',
     '.srow .badge{background:{accent};color:{accText};}'
   ].join('\n');
 
-  App.applyTheme = function () {
-    var t = App.THEMES[App.Settings.get('theme')] || App.THEMES.prime;
+  App.applyTheme = function (section) {
+    var key = App.Settings.get('theme');
+    section = section || (App.screen && App.screen.name) || 'home';
+    if (key === 'auto' || !App.THEMES[key]) key = App.SECTION_THEME[section] || 'apple';
+    if (App.themeKey === key && U.$('#theme-css')) return;
+    App.themeKey = key;
+    var t = App.THEMES[key];
     var css = THEME_CSS.replace(/\{(\w+)\}/g, function (m, k) { return t[k] || m; });
     var st = U.$('#theme-css');
     if (!st) { st = document.createElement('style'); st.id = 'theme-css'; document.head.appendChild(st); }
@@ -200,6 +207,7 @@
     },
     expiry: function () {
       var el = U.$('#hdr-exp'), a = App.Catalog.account;
+      if (App.Screens.home.el && App.Catalog.loaded) App.Screens.home.footer();
       el.className = '';
       if (!a) { el.textContent = ''; el.style.display = 'none'; return; }
       el.style.display = '';
@@ -234,14 +242,16 @@
     }
     App.screen = sc;
     App.Header.select(name);
-    U.$('#header').classList.toggle('hidden', name === 'welcome');
+    U.$('#header').classList.toggle('hidden', name === 'welcome' || name === 'home');
+    document.body.className = document.body.className.replace(/\bsec-\w+/g, '') + ' sec-' + name;
+    App.applyTheme(name);
     sc.el.classList.remove('hidden');
     var zones = { nav: App.Header.tabs };
     var own = sc.show(params) || {};
     for (var k in own) if (own.hasOwnProperty(k)) zones[k] = own[k];
     Nav.setBase({
       zones: zones,
-      current: params.focusContent || name === 'welcome' ? sc.entry : (params.focus || 'nav'),
+      current: params.focusContent || name === 'welcome' || name === 'home' ? sc.entry : (params.focus || 'nav'),
       onBack: App.onBack
     });
   };

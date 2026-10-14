@@ -74,6 +74,7 @@
       },
       onSelect: function (o, i) { m.close(); if (opts.onSelect) opts.onSelect(o, i); }
     });
+    U.$('.sel-list', m.el).style.height = Math.min(600, opts.options.length * 84) + 'px';
     m.open({ list: list }, 'list');
     list.setItems(opts.options, opts.index !== undefined ? opts.index : Math.max(0, sel));
     return m;

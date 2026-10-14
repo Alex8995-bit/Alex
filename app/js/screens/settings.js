@@ -300,9 +300,10 @@
     },
 
     look: function () {
-      var th = Object.keys(App.THEMES).map(function (k) { return { v: k, l: App.THEMES[k].name }; });
+      var th = [{ v: 'auto', l: 'Automatico per sezione', d: 'Home Apple TV · Live Prime Video · Film Netflix · Serie YouTube' }]
+        .concat(Object.keys(App.THEMES).map(function (k) { return { v: k, l: 'Sempre ' + App.THEMES[k].name }; }));
       return [
-        choice('theme', 'Tema', th, 'Colori ispirati a Prime Video, Netflix, YouTube e Apple TV', App.applyTheme),
+        choice('theme', 'Tema', th, 'Colori ispirati a Apple TV, Prime Video, Netflix e YouTube', function () { App.themeKey = null; App.applyTheme('settings'); }),
         toggle('hideAdult', 'Nascondi categorie per adulti', 'Nasconde le categorie con XXX, Adult, 18+…', function () {
           App.Screens.live.reset(); App.Screens.movie.reset(); App.Screens.series.reset();
         })

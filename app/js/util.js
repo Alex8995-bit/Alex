@@ -191,7 +191,8 @@
     epgMode: 'auto',         // auto | xmltv | off
     epgUrl: '',
     epgOffset: 0,            // ore
-    theme: 'prime',
+    theme: 'auto',
+    uiVersion: 2,
     hideAdult: false,
     proxy: '',
     proxyStreams: false
@@ -205,6 +206,8 @@
       for (var k in DEFAULTS) {
         if (DEFAULTS.hasOwnProperty(k)) this.data[k] = d.hasOwnProperty(k) ? d[k] : DEFAULTS[k];
       }
+      // nuova grafica: si passa al tema automatico per sezione
+      if (d.uiVersion !== DEFAULTS.uiVersion) { this.data.theme = 'auto'; this.data.uiVersion = DEFAULTS.uiVersion; }
       return this.data;
     },
     save: function () { App.Store.set('settings', this.data); },
