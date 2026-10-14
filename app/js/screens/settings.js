@@ -325,6 +325,7 @@
         infoRow('Piattaforma', App.isTizen ? 'Samsung Tizen' : App.isVidaa ? 'Hisense VIDAA' : 'Browser web'),
         infoRow('Player disponibili', (App.hasAVPlay() ? 'AVPlay, ' : '') + 'HTML5' + (window.Hls && window.Hls.isSupported() ? ', hls.js' : '') + (window.mpegts && window.mpegts.isSupported() ? ', mpegts.js' : '')),
         infoRow('Risoluzione', window.innerWidth + '×' + window.innerHeight),
+        infoRow('Ultimo tasto del telecomando', App.lastKey || '—'),
         {
           label: 'Cancella tutti i dati', desc: 'Rimuove playlist, preferiti e impostazioni', run: function () {
             UI.confirm('Cancellare tutti i dati?', 'L\'app tornerà alle impostazioni iniziali.', function () {

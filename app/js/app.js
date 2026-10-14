@@ -73,6 +73,10 @@
     App.Player.close();
     try { tizen.application.getCurrentApplication().exit(); return; } catch (e) { /* non Tizen */ }
     try { window.close(); } catch (e) { /* ignore */ }
+    // nel browser: si esce davvero tornando alla pagina precedente
+    App.leaving = true;
+    try { if (history.length > 2) { history.go(-2); return; } } catch (e) { /* ignore */ }
+    App.leaving = false;
     UI.toast('Chiudi l\'app con il tasto Home del telecomando');
   };
 

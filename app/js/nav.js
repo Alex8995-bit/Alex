@@ -97,8 +97,27 @@
       return false;
     },
 
+    /*
+     * Nei browser dei TV (es. Hisense VIDAA) il tasto Indietro torna alla pagina
+     * precedente. Teniamo sempre una voce "nostra" nella cronologia: quando il
+     * browser torna indietro la ripristiniamo e trattiamo l'evento come "Indietro".
+     */
+    trapHistory: function () {
+      if (App.isTizen || !window.history || !history.pushState) return;
+      try { history.pushState({ novaplay: 1 }, '', location.href); } catch (e) { return; }
+      window.addEventListener('popstate', function () {
+        if (App.leaving) return;
+        try { history.pushState({ novaplay: 1 }, '', location.href); } catch (e) { /* ignore */ }
+        // se lo stesso tasto e' gia' stato gestito come keydown non lo ripetiamo
+        if (Date.now() - (Nav.lastKeyBack || 0) < 600) return;
+        Nav.handle('back', {});
+      });
+    },
+
     init: function () {
+      Nav.trapHistory();
       document.addEventListener('keydown', function (e) {
+        App.lastKey = e.keyCode + (e.key ? ' (' + e.key + ')' : '');
         var ae = document.activeElement;
         var typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
         if (typing) {
@@ -122,6 +141,7 @@
           if (now - (Nav.lastRepeat || 0) < 70) { e.preventDefault(); return; }
           Nav.lastRepeat = now;
         }
+        if (a === 'back') Nav.lastKeyBack = Date.now();
         if (Nav.handle(a, e)) e.preventDefault();
         else if (a !== 'back' || e.keyCode !== 8) e.preventDefault();
       }, true);
