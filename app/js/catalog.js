@@ -65,12 +65,19 @@
         }
         return C.fetch(profile, status).then(function (T) {
           C.adopt(T);
+          C.cachedAt = Date.now();
           C.save(profile, T);
         });
       }).then(function () {
         if (!C.account) C.account = C.manualAccount(profile);
         C.loaded = true;
       });
+    },
+
+    /* Scadenza inserita a mano (liste M3U / USB senza account Xtream). */
+    manualAccount: function (profile) {
+      var exp = U.parseDate(profile.expiry);
+      return { source: 'manual', status: exp ? (U.daysLeft(exp) < 0 ? 'Expired' : 'Active') : '', expiry: exp, unlimited: false, unknown: !exp };
     },
 
     target: function () {

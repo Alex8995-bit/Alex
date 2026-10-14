@@ -75,24 +75,54 @@ node tools/serve.js 8080     # prova l'app su http://localhost:8080
 
 ## Installazione su Samsung (Tizen, modelli dal 2017 in poi)
 
-Samsung installa solo app **firmate**, quindi la prima installazione si fa in rete in *modalità sviluppatore* (una volta sola).
+Su Samsung l'app si **installa sul TV** come una vera app: compare tra le App, si apre col telecomando e funziona **senza il Mac acceso** e **senza proxy**. Usa il player nativo Samsung (AVPlay), più stabile del browser. Grafica e funzioni sono le stesse.
 
-1. **Attiva la modalità sviluppatore sul TV**: apri *App*, digita `1 2 3 4 5` con il telecomando, attiva **Developer mode**, inserisci l'**IP del PC** e riavvia il TV.
-2. Sul PC installa **Tizen Studio** con l'estensione **Samsung TV Extension** (dal Package Manager).
-3. In *Tools > Certificate Manager* crea un **certificato Samsung** (serve un account Samsung). Nel certificato distributore aggiungi il **DUID del TV**, che trovi collegando il TV dal *Device Manager*.
-4. Crea e firma il pacchetto:
-   ```bash
-   TIZEN_PROFILE=nome_del_tuo_profilo node tools/build.js
-   ```
-   Senza la CLI `tizen` il file `dist/NovaPlay.wgt` resta **non firmato**: puoi importare la cartella `app/` in Tizen Studio e usare *Run As > Tizen Web Application*.
-5. Installa sul TV:
-   ```bash
-   sdb connect IP_DEL_TV
-   tizen install -n dist/NovaPlay.wgt -t NOME_DISPOSITIVO   # nome da "sdb devices"
-   ```
-6. L'app compare tra le App del TV come **NovaPlay IPTV**.
+Samsung accetta solo app **firmate**: l'installazione si fa una volta dal computer in *modalità sviluppatore*. Servono circa 30–45 minuti la prima volta.
 
-**USB su Samsung**: una volta installata, l'app legge dalla chiavetta USB i file `.m3u`/`.m3u8` e la configurazione `novaplay.json`, da *Impostazioni > Playlist > Carica da chiavetta USB*. I TV Samsung non permettono di **installare** app non firmate direttamente da USB: per questo serve il passaggio iniziale sopra.
+### 1. Sul TV: attiva la modalità sviluppatore
+1. Trova l'**IP del Mac**: *Impostazioni di Sistema → Wi-Fi → Dettagli* (es. `192.168.1.10`).
+2. Sul TV apri **App**. Con il telecomando digita **1 2 3 4 5** (dal tastierino o da quello a schermo).
+3. Attiva **Developer mode**, inserisci l'**IP del Mac** e premi OK.
+4. **Riavvia il TV**: tieni premuto il tasto di accensione finché non si riaccende.
+5. Annota l'**IP del TV**: *Impostazioni → Generali → Rete → Stato rete → Impostazioni IP*.
+
+### 2. Sul Mac: installa Tizen Studio
+1. Scarica **Tizen Studio con IDE** per macOS da https://developer.tizen.org/development/tizen-studio/download e installalo.
+2. Al termine si apre il **Package Manager**:
+   - nella scheda *Main SDK* installa **Tizen SDK Tools**;
+   - nella scheda *Extension SDK* installa **Samsung Certificate Extension** e **TV Extensions** (l'ultima versione).
+
+### 3. Collega il TV
+Nel Terminale (sostituisci `IP_DEL_TV`):
+```bash
+export PATH="$PATH:$HOME/tizen-studio/tools:$HOME/tizen-studio/tools/ide/bin"
+sdb connect IP_DEL_TV
+sdb devices
+```
+`sdb devices` deve mostrare il TV, con un nome tipo `UE55TU7100`: annotalo. Se non compare, controlla che TV e Mac siano sulla stessa rete e che nella modalità sviluppatore ci sia l'IP giusto del Mac.
+
+### 4. Crea il certificato (una volta sola)
+1. Apri Tizen Studio e vai in **Tools → Certificate Manager**, poi premi **+**.
+2. Scegli **Samsung**, poi **TV**, e dai un nome al profilo, per esempio `novaplay`.
+3. Crea un **Author certificate**: nome e una password a tua scelta. Ti verrà chiesto di accedere con un **account Samsung** (gratuito).
+4. Nel **Distributor certificate** lascia *Privilege: Public*. Il **DUID** del TV viene aggiunto da solo se il TV è collegato (punto 3).
+
+### 5. Crea il pacchetto firmato e installalo
+Nella cartella del progetto:
+```bash
+export PATH="$PATH:$HOME/tizen-studio/tools:$HOME/tizen-studio/tools/ide/bin"
+TIZEN_PROFILE=novaplay node tools/build.js
+tizen install -n dist/NovaPlay.wgt -t NOME_DEL_TV
+```
+`NOME_DEL_TV` è quello mostrato da `sdb devices`. Il primo comando deve dire `(firmato con il profilo novaplay)`.
+
+Ora **NovaPlay IPTV** è tra le App del TV. Aprila e aggiungi la lista come su Hisense (Xtream, link M3U o chiavetta USB).
+
+**Note**
+- La modalità sviluppatore si può spegnere dopo l'installazione: l'app resta.
+- Dopo un **aggiornamento del firmware** Samsung può capitare di dover reinstallare l'app (punto 5).
+- Per aggiornare l'app a una nuova versione basta ripetere il punto 5.
+- **Senza installare niente** puoi provarla anche col browser *Internet* del Samsung, come su Hisense (`node tools/serve.js` sul Mac). In quel caso però il player è quello del browser, meno stabile di quello nativo.
 
 ## Uso su Hisense (VIDAA)
 

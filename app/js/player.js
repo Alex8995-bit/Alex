@@ -19,6 +19,15 @@
 
   function langOf(s) { return String(s || '').toLowerCase().slice(0, 3); }
 
+  var LANG_NAMES = { ita: 'Italiano', it: 'Italiano', eng: 'Inglese', en: 'Inglese', spa: 'Spagnolo', es: 'Spagnolo', fra: 'Francese', fre: 'Francese', fr: 'Francese',
+    deu: 'Tedesco', ger: 'Tedesco', de: 'Tedesco', por: 'Portoghese', pt: 'Portoghese', alb: 'Albanese', sqi: 'Albanese', ara: 'Arabo', ar: 'Arabo',
+    rus: 'Russo', ru: 'Russo', tur: 'Turco', tr: 'Turco', rum: 'Rumeno', ron: 'Rumeno', pol: 'Polacco', nld: 'Olandese', dut: 'Olandese', und: 'Non specificata' };
+  /* Nome leggibile della lingua di una traccia ("ita" -> "Italiano"). */
+  function langName(code, fallback) {
+    var c = String(code || '').toLowerCase();
+    return LANG_NAMES[c] || LANG_NAMES[c.slice(0, 3)] || fallback || (code ? String(code).toUpperCase() : '');
+  }
+
   /* ================================================ motore AVPlay */
   function AVPlayEngine(cb) {
     this.cb = cb;
@@ -110,7 +119,7 @@
         var info = {};
         try { info = JSON.parse(t.extra_info); } catch (e) { /* ignore */ }
         var lang = info.language || info.track_lang || '';
-        out.push({ index: t.index, lang: lang, label: (lang || 'Traccia ' + (out.length + 1)).toUpperCase() });
+        out.push({ index: t.index, lang: lang, label: langName(lang, 'Traccia ' + (out.length + 1)) });
       });
     } catch (e) { /* ignore */ }
     return out;
@@ -542,7 +551,11 @@
 
     menuTracks: function (kind) {
       var e = P.engine, tracks = e.tracks(kind), cur = e.currentTrack(kind);
-      var opts = tracks.map(function (t) { return { label: t.label, sub: t.lang && t.lang !== t.label ? t.lang : '', idx: t.index, checked: t.index === cur }; });
+      var opts = tracks.map(function (t) {
+        var named = t.lang ? langName(t.lang, t.label) : t.label;
+        var sub = t.label && t.label.toLowerCase() !== named.toLowerCase() && t.label.toLowerCase() !== String(t.lang).toLowerCase() ? t.label : '';
+        return { label: named, sub: sub, idx: t.index, checked: t.index === cur };
+      });
       if (kind === 'text') opts.unshift({ label: 'Disattivati', idx: -1, checked: cur < 0 });
       if (!tracks.length) {
         UI.toast(kind === 'text' ? 'Nessun sottotitolo disponibile per questo contenuto' : 'Una sola traccia audio disponibile');

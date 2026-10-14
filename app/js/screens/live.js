@@ -139,6 +139,7 @@
       }
       paint(App.EPG.cached(ch));
       App.EPG.get(ch).then(function (progs) {
+        if (!progs) return;
         paint(progs);
         var i = L.chs.items.indexOf(ch);
         if (i >= 0) L.chs.refreshItem(i);

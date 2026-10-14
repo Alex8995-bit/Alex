@@ -56,7 +56,10 @@
   /* Immagine con fallback silenzioso (nasconde l'icona se il link e' rotto). */
   U.img = function (src, cls) {
     if (!src) return '';
-    return '<img class="' + (cls || '') + '" src="' + U.esc(src) + '" decoding="async" onerror="this.style.visibility=\'hidden\'" alt="">';
+    // quando il logo/locandina si carica nasconde il nome di riserva che sta sotto
+    return '<img class="' + (cls || '') + '" src="' + U.esc(src) + '" decoding="async"' +
+      ' onload="var p=this.previousSibling;if(p&&p.className===\'card-ph\')p.style.display=\'none\'"' +
+      ' onerror="this.style.visibility=\'hidden\'" alt="">';
   };
 
   /* ---------------------------------------------------------------- date */

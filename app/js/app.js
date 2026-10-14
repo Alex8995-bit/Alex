@@ -18,7 +18,8 @@
     '#bg{background:radial-gradient(ellipse at 70% 0%,{bg2} 0%,{bg} 60%);}',
     '.modal-box,#loading .box{background:{bg2};}',
     '.cats,.live-chs,.live-info-wrap,.set-menu{background:{panel};}',
-    '.live-side{background:{bg};}',
+    '.live-side,.live-info{background:{bg};}',
+    'body.engine-avplay.player-mini .live-side{background:transparent;}',
     '#tabs .li.sel{color:#fff;}',
     '#tabs .li.focus{background:{accent};color:{accText};transform:scale(1.06);}',
     '.zone-active .li.focus.cat,.zone-active .li.focus.set-item{background:{accent};color:{accText};}',
@@ -89,9 +90,10 @@
       return '<div class="card-img"><div class="card-ph">' + App.Cards.initials(it.name) + '</div>' +
         U.img(it.poster || it.logo) + badge + pr + '</div><div class="card-title">' + U.esc(it.name) + '</div>';
     },
+    /* Solo il logo del canale; il nome compare unicamente se il logo manca. */
     channel: function (it) {
       return '<div class="card-img"><div class="card-ph">' + App.Cards.initials(it.name) + '</div>' + U.img(it.logo, 'logo') +
-        '</div><div class="card-title">' + (it.num ? it.num + ' · ' : '') + U.esc(it.name) + '</div>';
+        (it.num ? '<span class="card-num">' + U.esc(it.num) + '</span>' : '') + '</div>';
     },
     resume: function (it) {
       var title = it.kind === 'episode' ? it.seriesName + ' · S' + it.season + 'E' + it.ep : it.name;

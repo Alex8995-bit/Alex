@@ -90,7 +90,10 @@
     /* Precarica la EPG di una lista di canali (quelli a schermo). */
     prefetch: function (list, cb) {
       if (E.mode !== 'xtream') return;
-      E.queue = E.queue.filter(function (j) { return j.started; });
+      // scartiamo le richieste vecchie in coda (canali non piu' a schermo) chiudendole bene
+      if (E.queue.length > 30) {
+        E.queue.splice(30).forEach(function (j) { delete E.pending[j.ch.id]; j.res(null); });
+      }
       list.forEach(function (ch) {
         if (!E.cache[ch.id] && !E.pending[ch.id]) E.get(ch).then(function () { if (cb) cb(ch); });
       });
